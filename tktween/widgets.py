@@ -25,12 +25,8 @@ class Translate(TweenAnimator):
 
 
     def start(self, widget: tk.Widget) -> Any:
-        place_info = widget.place_info()
-        if not place_info:
-            raise RuntimeError("Widget was not added using .place")
-        
-        x0 = int(place_info['x'])
-        y0 = int(place_info['y'])
+        x0 = widget.winfo_x()
+        y0 = widget.winfo_y()
         return x0, y0
 
     
