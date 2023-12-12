@@ -7,7 +7,7 @@ This is a small library to apply animations to tkinter widgets.
 You can use pip to install this library from this repository:
 
 ```python
-pip install git+"<GIT-URL>"
+pip install git+https://github.com/DominikPenk/tktween
 ```
 
 ## Usage
