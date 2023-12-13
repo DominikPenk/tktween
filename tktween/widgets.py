@@ -25,6 +25,7 @@ class Translate(TweenAnimator):
 
 
     def start(self, widget: tk.Widget) -> Any:
+        widget.update_idletasks()
         x0 = widget.winfo_x()
         y0 = widget.winfo_y()
         return x0, y0
