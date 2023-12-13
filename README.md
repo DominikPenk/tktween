@@ -64,5 +64,6 @@ window.mainloop()
 
 ## Roadmap
 
-- [ ] Implement clean interface for parallel animations with varying lengths
+- [x] Implement clean interface for parallel animations with varying lengths
 - [ ] Implement animations for canvas objects
+- [ ] Implement frame skipping if workload is high
