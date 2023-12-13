@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 import tkinter as tk
 import numpy as np
 
@@ -40,7 +41,7 @@ class SceneObject:
         self.scene.canvas.itemconfigure(self.idx, *args, **kwargs)
 
     
-    def get_config(self, cfg:str) -> any:
+    def get_config(self, cfg:str) -> Any:
         """
         Gets the configuration value of the object on the canvas.
 
@@ -50,7 +51,7 @@ class SceneObject:
             cfg (str): The configuration option to retrieve.
 
         Returns:
-            any: The value of the specified configuration option.
+            Any: The value of the specified configuration option.
         """
         return self.scene.canvas.itemconfigure(self.idx, cfg)[-1]
 
