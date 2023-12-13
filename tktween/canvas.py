@@ -97,8 +97,7 @@ class FillColor(CanvasTweenAnimator):
         self.clockwise = clockwise
 
     def start(self, obj: SceneObject) -> tuple[Color, Color]:
-        canvas = obj.scene.canvas
-        current_color = canvas.itemconfigure(obj.idx, "fill")[-1]
+        current_color = obj.get_config("fill")
 
         c1 = self.start_color or current_color
         c2 = self.end_color or current_color
@@ -108,5 +107,5 @@ class FillColor(CanvasTweenAnimator):
     def step(self, obj: SceneObject, t: float, animation_data: tuple[Color, Color]) -> None:
         c1, c2 = animation_data
         c = lerp_color(c1, c2, t, mode=self.mode, clockwise=self.clockwise)
-        obj.scene.canvas.itemconfigure(obj.idx, fill=rgb_to_hex(c))
+        obj.configure(fill=rgb_to_hex(c))
         
