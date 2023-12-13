@@ -8,6 +8,17 @@ from .easing import Easing, get_easing
 
 
 class AnimationBlock:
+    """
+    A block of animations to be processed grouped together.
+
+    Attributes:
+        animators (list[TweenAnimator]): List of animators to be used in block.
+        duration (float): Number of frames specifying block's duration.
+        offset (float): Number of frames specifying block's offset.
+        easing (Easing | None): An easing function applied to block. If None, no easing applied.
+        uid (uuid.UUID): A unique identifier for animation block.
+    """
+    
     def __init__(
         self,
         animators:  list[TweenAnimator],
@@ -23,6 +34,12 @@ class AnimationBlock:
 
 
     def finalize(self, handle:TweenHandle):
+        """
+        Finalize the animation block.
+
+        Args:
+            handle (TweenHandle): Handle of the tween.
+        """
         for animator in self.animators:
             animator.finalize(handle.widget, self.uid)
 
@@ -32,9 +49,7 @@ class TweenHandle(object):
         self,
         widget:tk.Widget,
         tween:Tween,
-        after_id:int|None = None
     ) -> None:
-        self.after_id = after_id
         self.widget = widget
         self.tween = tween
         self.frame_0 = None
@@ -47,19 +62,15 @@ class TweenHandle(object):
         Returns:
             True if the tween was canceled or False if it was already terminated 
         """
-        if self.active:
-            self.widget.after_cancel(self.after_id)
-            self.after_id = None
-            return True
-        return False
+        # TODO: Actually implement this
+        return True
 
-
-    @property
-    def active(self) -> bool:
-        return self.after_id is not None
 
 
 class TweenDirector(object):
+    """
+    Singleton class that manages Tweens and handles animations.
+    """
     _instance:TweenDirector = None
 
     def __new__(cls):
@@ -74,21 +85,49 @@ class TweenDirector(object):
 
     @property
     def root(self) -> tk.Tk:
+        """
+        Get the root widget.
+
+        Returns:
+            tk.Tk: The root widget.
+        """
         if self._root is None:
             self._root = tk._default_root
         return self._root
     
     @root.setter
     def root(self, root:tk.Tk) -> None:
+        """
+        Set the root widget.
+        
+        Args:
+            root (tk.Tk): The Tk widget to be set as root.
+        """
         self._root = root
 
     def start_animation(self, widget: tk.Widget, tween: Tween):
+        """
+        Start the animation by creating a TweenHandle, storing it, and scheduling the first animation frame.
+
+        Args:
+            widget (tk.Widget): Target widget of the tween.
+            tween (Tween): Tween object.
+        """
         tween_handle = TweenHandle(widget, tween)
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
             self._after_id = self.root.after_idle(self._animation_heartbeat, 0)
 
     def _animation_heartbeat(self, frame_id: int):
+        """
+        Handle one animation frame, updating all active tweens.
+
+        Args:
+            frame_id (int): Frame id.
+
+        Returns:
+            None
+        """
         finished_tweens = []
         for tween_id, tween_handle in self._active_tweens.items():
             running = tween_handle.tween.animation_frame(frame_id, tween_handle)
@@ -131,6 +170,16 @@ class Tween(object):
         global_frame_id: int,
         handle: TweenHandle
     ) -> bool:
+        """
+        Process one frame of all blocks in the animation sequence.
+
+        Args:
+            global_frame_id (int): The frame id relative to the start of the application.
+            handle (TweenHandle): Handle of the tween.
+
+        Returns:
+            bool: False if all animations are finished, True otherwise.
+        """
         
         if handle.frame_0 is None:
             handle.frame_0 = global_frame_id
@@ -156,19 +205,23 @@ class Tween(object):
         return running
 
 
-    @classmethod
-    def get_root_window(cls) -> tk.Tk:
-        if Tween.__root is None:
-            Tween.__root = tk._default_root
-        return Tween.__root
-
-
     def then(
         self,
         *animations,
         duration:int,
         easing:Easing|None=None
     ) -> Tween:
+        """
+        Add new animations which are starting after the previous ones.
+        
+        Args:
+            *animations: Animation objects.
+            duration (int): Duration of the animation in seconds.
+            easing (Easing | None, optional): Easing function to apply. Defaults to None.
+            
+        Returns:
+            Tween: The current Tween instance for chaining.
+        """
         self.animation_sequence.append(AnimationBlock(
             animators=animations,
             duration=duration,
@@ -185,7 +238,17 @@ class Tween(object):
         duration:float|None=None,
         easing:Easing|None=None
     ) -> Tween:
-        """Run the given animations or tween in parallel"""
+        """
+        Run the given animations or tween in parallel.
+
+        Args:
+            *animations: Animation objects.
+            duration (float | None, optional): Duration of animation in seconds. Defaults to same as previous block.
+            easing (Easing | None, optional): Easing function to apply. Defaults to None.
+        
+        Returns:
+            Tween: The current Tween instance for chaining.
+        """
         duration = duration or self._then_offset
         self.animation_sequence.append(AnimationBlock(
             animators=animations,
@@ -197,7 +260,12 @@ class Tween(object):
 
 
     def synchronize(self) -> Tween:
-        """Wait untill all animation blocks are finished befor starting new blocks."""
+        """
+        Wait until all animation blocks are finished before starting new blocks.
+
+        Returns:
+            Tween: The current Tween instance for chaining.
+        """
         self._parallel_offset = self._then_offset
         return self
 
@@ -206,5 +274,14 @@ class Tween(object):
         self,
         target: TweenAble,
     ) -> TweenHandle:
+        """
+        Run the animation on a target.
+
+        Args:
+            target (TweenAble): The target widget to animate.
+
+        Returns:
+            TweenHandle: Handle of the tween.
+        """
         return TweenDirector().start_animation(target, self)
 
