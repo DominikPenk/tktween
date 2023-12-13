@@ -22,17 +22,17 @@ tween = tktween.Tween(
     duration=0.25
 ).parallel(
     tktween.Background(end_color='blue', mode='hsv')
-).synchronize().then(
+).then(
     tktween.Background(end_color='yellow'),
     tktween.Translate(y=-50),
-    duration=1.00,
+    duration=0.35,
     easing=tktween.Easing.CUBIC_IN_OUT
 )
 
 button_1 = ttk.Button(
     window,
     text="Start Tween",
-    command=lambda: tween.run(frame_1)
+    command=lambda: tween.run(frame_1, loop=True)
 )
 button_2 = ttk.Button(
     window,

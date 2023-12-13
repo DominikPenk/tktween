@@ -12,8 +12,9 @@ from .tween import TweenDirector
 from .utils import Color, lerp, lerp_color, rgb_to_hex
 
 __all__ = [
-    'Translate',
+    'Scale',
     'Rotate',
+    'Translate',
     'FillColor'
 ]
 
@@ -67,8 +68,18 @@ class Rotate(CanvasTweenAnimator):
         return obj.rotation
     
     def step(self, obj: SceneObject, t: float, a0: float) -> None:
-        a = lerp(a0, a0+self.angle, t)
-        obj.rotation = a
+        obj.rotation = lerp(a0, a0+self.angle, t)
+
+class Scale(CanvasTweenAnimator):
+    def __init__(self, scale:float) -> None:
+        super().__init__()
+        self.scale = scale
+
+    def start(self, obj:SceneObject) -> float:
+        return obj.scale
+    
+    def step(self, obj: SceneObject, t:float, s0: float) -> None:
+        obj.scale = lerp(s0, self.scale, t)
 
 
 class FillColor(CanvasTweenAnimator):

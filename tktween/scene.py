@@ -12,6 +12,7 @@ class SceneObject:
         xmax, ymax = pts.max(axis=0)
 
         self._rotation    = 0.0
+        self._scale       = 1.0
         self._translation = 0.5 * np.array([xmin + xmax, ymin + ymax])  
         self.pts -= self._translation[None, :]
         self.scene = scene
@@ -27,9 +28,18 @@ class SceneObject:
         a = np.radians(self._rotation)
         c, s = np.cos(a), np.sin(a)
         R = np.array([[c, -s], [s, c]])
-        transformed_pts = np.einsum('ij,nj->ni', R, self.pts) + self._translation[None, :]    
+        transformed_pts = np.einsum('ij,nj->ni', R, self._scale * self.pts) + self._translation[None, :]    
         return transformed_pts
     
+    @property
+    def scale(self) -> float:
+        return self._scale
+    
+    @scale.setter
+    def scale(self, s:float):
+        self._scale = s
+        self.scene.dirty.add(self.idx)
+
     @property
     def rotation(self) -> float:
         return self._rotation
@@ -38,7 +48,6 @@ class SceneObject:
     def rotation(self, angle: float):
         self._rotation = angle
         self.scene.dirty.add(self.idx)
-
 
     @property
     def translation(self) -> np.ndarray:
