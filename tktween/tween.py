@@ -30,7 +30,6 @@ class AnimationBlock:
         self.duration  = int(round(duration * 30)) 
         self.offset    = int(round(offset * 30))
         self.easing    = get_easing(easing)
-        self.uid       = uuid.uuid4()
 
 
     def finalize(self, handle:TweenHandle):
@@ -41,7 +40,7 @@ class AnimationBlock:
             handle (TweenHandle): Handle of the tween.
         """
         for animator in self.animators:
-            animator.finalize(handle.widget, self.uid)
+            animator.finalize(handle.widget, handle.id)
 
 
 class TweenHandle(object):
@@ -49,9 +48,11 @@ class TweenHandle(object):
         self,
         widget:tk.Widget,
         tween:Tween,
+        loop:bool
     ) -> None:
         self.widget = widget
         self.tween = tween
+        self.loop = loop
         self.frame_0 = None
         self.id = uuid.uuid4()
 
@@ -106,7 +107,7 @@ class TweenDirector(object):
             cls._instance = TweenDirector()
         return cls._instance
 
-    def start_animation(self, widget: tk.Widget, tween: Tween):
+    def start_animation(self, widget: tk.Widget, tween: Tween, loop:bool):
         """
         Start the animation by creating a TweenHandle, storing it, and scheduling the first animation frame.
 
@@ -114,7 +115,7 @@ class TweenDirector(object):
             widget (tk.Widget): Target widget of the tween.
             tween (Tween): Tween object.
         """
-        tween_handle = TweenHandle(widget, tween)
+        tween_handle = TweenHandle(widget, tween, loop)
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
             self._after_id = self.root.after_idle(self._animation_heartbeat, 0)
@@ -195,7 +196,15 @@ class Tween(object):
             handle.frame_0 = global_frame_id
 
         frame_id = global_frame_id - handle.frame_0
-        running = False
+
+        if handle.loop:
+            num_frames = self.get_num_frames()
+            iteration, frame_id = divmod(frame_id, num_frames)
+            if iteration % 2 == 1:
+                frame_id = num_frames - frame_id
+
+        # If we loop, we are always running
+        running = handle.loop
 
         for block in self.animation_sequence:
             rel_frame = frame_id - block.offset
@@ -205,9 +214,9 @@ class Tween(object):
                 t_rel = block.easing(t_rel)
                 
                 for animator in block.animators:
-                    animator(handle.widget, t_rel, block.uid)
+                    animator(handle.widget, t_rel, handle.id)
 
-                if rel_frame == block.duration:
+                if rel_frame == block.duration and not handle.loop:
                     block.finalize(handle)
 
             running = running or (frame_id < block.offset + block.duration) 
@@ -283,6 +292,7 @@ class Tween(object):
     def run(
         self,
         target: TweenAble,
+        loop:bool=False
     ) -> TweenHandle:
         """
         Run the animation on a target.
@@ -293,9 +303,13 @@ class Tween(object):
         Returns:
             TweenHandle: Handle of the tween.
         """
-        return TweenDirector.get().start_animation(target, self)
+        return TweenDirector.get().start_animation(target, self, loop)
+
+
+    def get_num_frames(self) -> int:
+        return int(round(self._then_offset * 30))
 
 
 class CanvasTween(Tween):
-    def run(self, canvas: tk.Canvas, target: ObjectId) -> TweenHandle:
-        return TweenDirector.get().start_animation((canvas, target), self)
+    def run(self, canvas: tk.Canvas, target: ObjectId, loop:bool=False) -> TweenHandle:
+        return TweenDirector.get().start_animation((canvas, target), self, loop)
