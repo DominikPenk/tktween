@@ -16,11 +16,17 @@ frame_2 = ttk.Frame(window, style="my.TFrame", width=100, height=50)
 
 tween = tktween.Tween(
     tktween.Translate(x=100),
-    tktween.Background(end_color='blue'),
     duration=0.15
 ).then(
     tktween.Translate(y=50),
     duration=0.25
+).parallel(
+    tktween.Background(end_color='blue', mode='hsv')
+).synchronize().then(
+    tktween.Background(end_color='yellow'),
+    tktween.Translate(y=-50),
+    duration=1.00,
+    easing=tktween.Easing.CUBIC_IN_OUT
 )
 
 button_1 = ttk.Button(

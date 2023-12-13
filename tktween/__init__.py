@@ -1,3 +1,4 @@
 from .base import TweenAnimator
-from .tween import Tween
-from .widgets import Translate, Background
+from .easing import Easing
+from .tween import Tween, TweenDirector, TweenHandle
+from .widgets import Background, Translate

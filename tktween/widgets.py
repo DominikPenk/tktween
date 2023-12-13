@@ -30,8 +30,8 @@ class Translate(TweenAnimator):
         return x0, y0
 
     
-    def step(self, widget: tk.Widget, t: float) -> None:
-        x0, y0 = self.animation_data[widget]
+    def step(self, widget: tk.Widget, t: float, animation_data: tuple[int, int]) -> None:
+        x0, y0 = animation_data
         dx = lerp(0, self.x, t)
         dy = lerp(0, self.y, t)
         widget.place(
@@ -74,7 +74,7 @@ class Background(StyleAnimator):
         self.clockwise = clockwise
 
 
-    def start(self, widget: tk.Widget) -> Any:
+    def start(self, widget: tk.Widget) -> tuple[Color, Color, str]:
         style_name = self.get_animated_style(widget)
         
         current_style = widget['style']
@@ -95,7 +95,7 @@ class Background(StyleAnimator):
         return c1, c2, style_name
     
     
-    def step(self, widget: tk.Widget, t: float) -> None:
-        c1, c2, style = self.animation_data[widget]
+    def step(self, widget: tk.Widget, t: float, animation_data:tuple[Color, Color, str]) -> None:
+        c1, c2, style = animation_data
         c = lerp_color(c1, c2, t, mode=self.mode, clockwise=self.clockwise)
         self.style.configure(style, background=rgb_to_hex(c))
