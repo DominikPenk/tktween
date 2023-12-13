@@ -3,10 +3,10 @@ from __future__ import annotations
 import abc
 import tkinter as tk
 import uuid
-from typing import Any, TypeAlias
+from typing import Any, Optional, TypeAlias
 
 ObjectId: TypeAlias = int
-TweenAble: TypeAlias = tk.Widget | ObjectId 
+TweenAble: TypeAlias = tk.Widget | tuple[tk.Canvas, ObjectId] 
 
 class TweenAnimator(abc.ABC):
     def __init__(self):
@@ -44,5 +44,5 @@ class TweenAnimator(abc.ABC):
         if animation_id not in self.animation_data:
             self.animation_data[animation_id] = self.start(widget)
         animation_data = self.animation_data[animation_id]
-        return self.step(widget, t, animation_data)
+        self.step(widget, t, animation_data)
     

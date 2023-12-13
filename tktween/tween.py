@@ -3,9 +3,9 @@ from __future__ import annotations
 import tkinter as tk
 import uuid
 
-from .base import TweenAble, TweenAnimator
+from .base import TweenAble, ObjectId, TweenAnimator
 from .easing import Easing, get_easing
-
+from .scene import Scene
 
 class AnimationBlock:
     """
@@ -18,7 +18,7 @@ class AnimationBlock:
         easing (Easing | None): An easing function applied to block. If None, no easing applied.
         uid (uuid.UUID): A unique identifier for animation block.
     """
-    
+
     def __init__(
         self,
         animators:  list[TweenAnimator],
@@ -66,22 +66,17 @@ class TweenHandle(object):
         return True
 
 
-
 class TweenDirector(object):
     """
     Singleton class that manages Tweens and handles animations.
     """
     _instance:TweenDirector = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
+    
     def __init__(self):
         self._active_tweens: dict[uuid.UUID, TweenHandle] = {}
         self._after_id: int | None = None
         self._root: tk.Tk | None = None
+        self._scenes: dict[tk.Canvas, Scene] = {}
 
     @property
     def root(self) -> tk.Tk:
@@ -105,6 +100,12 @@ class TweenDirector(object):
         """
         self._root = root
 
+    @classmethod
+    def get(cls):
+        if cls._instance is None:
+            cls._instance = TweenDirector()
+        return cls._instance
+
     def start_animation(self, widget: tk.Widget, tween: Tween):
         """
         Start the animation by creating a TweenHandle, storing it, and scheduling the first animation frame.
@@ -117,6 +118,11 @@ class TweenDirector(object):
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
             self._after_id = self.root.after_idle(self._animation_heartbeat, 0)
+
+    def get_scene(self, canvas:tk.Canvas) -> Scene:
+        if canvas not in self._scenes:
+            self._scenes[canvas] = Scene(canvas)
+        return self._scenes[canvas]
 
     def _animation_heartbeat(self, frame_id: int):
         """
@@ -133,6 +139,10 @@ class TweenDirector(object):
             running = tween_handle.tween.animation_frame(frame_id, tween_handle)
             if not running:
                 finished_tweens.append(tween_id)
+
+        for scene in self._scenes.values():
+            scene.update()
+
         for tween_id in finished_tweens:
             del self._active_tweens[tween_id]
 
@@ -283,5 +293,9 @@ class Tween(object):
         Returns:
             TweenHandle: Handle of the tween.
         """
-        return TweenDirector().start_animation(target, self)
+        return TweenDirector.get().start_animation(target, self)
 
+
+class CanvasTween(Tween):
+    def run(self, canvas: tk.Canvas, target: ObjectId) -> TweenHandle:
+        return TweenDirector.get().start_animation((canvas, target), self)
