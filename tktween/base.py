@@ -37,7 +37,7 @@ class TweenAnimator(abc.ABC):
 
 
     def finalize(self, widget:TweenAble, animation_id:uuid.UUID) -> None:
-        self.animation_data.pop(animation_id)
+        self.animation_data.pop(animation_id, None)
 
 
     def __call__(self, widget:TweenAble, t:float, animation_id:uuid.UUID) -> None:

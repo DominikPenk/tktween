@@ -57,14 +57,14 @@ class TweenHandle(object):
         self.id = uuid.uuid4()
 
 
-    def cancel(self) -> bool:
+    def cancel(self, revert:bool=False) -> bool:
         """Cancel the tween represented by this handle
 
         Returns:
             True if the tween was canceled or False if it was already terminated 
         """
-        # TODO: Actually implement this
-        return True
+        director = TweenDirector.get()
+        return director.cancel_tween(self, revert)
 
 
 class TweenDirector(object):
@@ -119,11 +119,28 @@ class TweenDirector(object):
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
             self._after_id = self.root.after_idle(self._animation_heartbeat, 0)
+        return tween_handle
+
+    def cancel_tween(self, handle:TweenHandle, revert:bool) -> bool:
+        if handle.id not in self._active_tweens:
+            return False
+        
+        if self._active_tweens.pop(handle.id) != handle:
+            raise RuntimeError("Tween UIDs are mixed up")
+        handle.tween.cancel(handle, revert)
+        return True
+
+    def is_active(self, tween:Tween, widget: tk.Widget) -> bool:
+        return any(
+            h.tween == tween and h.widget.winfo_id() == widget.winfo_id()  
+            for h in self._active_tweens.values()
+        )
 
     def get_scene(self, canvas:tk.Canvas) -> Scene:
         if canvas not in self._scenes:
             self._scenes[canvas] = Scene(canvas)
         return self._scenes[canvas]
+
 
     def _animation_heartbeat(self, frame_id: int):
         """
@@ -145,7 +162,7 @@ class TweenDirector(object):
             scene.update()
 
         for tween_id in finished_tweens:
-            del self._active_tweens[tween_id]
+            self._active_tweens.pop(tween_id, None)
 
         if self._active_tweens:
             self._after_id = self.root.after(30, self._animation_heartbeat, frame_id + 1)
@@ -219,9 +236,16 @@ class Tween(object):
                 if rel_frame == block.duration and not handle.loop:
                     block.finalize(handle)
 
-            running = running or (frame_id < block.offset + block.duration) 
+            running = running or rel_frame <= block.duration 
         
         return running
+
+
+    def cancel(self, handle:TweenHandle, revert:bool) -> None:
+        if revert:
+            self.animation_frame(handle.frame_0, handle)
+        for block in self.animation_sequence:
+            block.finalize(handle)
 
 
     def then(
@@ -285,7 +309,14 @@ class Tween(object):
         Returns:
             Tween: The current Tween instance for chaining.
         """
-        self._parallel_offset = self._then_offset
+        t = self.get_duration()
+        self._parallel_offset = t
+        self._then_offset = t
+        return self
+
+
+    def pause(self, duration:float) -> Tween:
+        self._then_offset += duration
         return self
 
 
@@ -306,8 +337,21 @@ class Tween(object):
         return TweenDirector.get().start_animation(target, self, loop)
 
 
+    def is_running(self, widget:tk.Widget) -> bool:
+        return TweenDirector.get().is_active(self, widget)
+
+
+
+    def get_duration(self) -> float:
+        return self.get_num_frames() / 30
+
+
     def get_num_frames(self) -> int:
-        return int(round(self._then_offset * 30))
+        max_frames = 0
+        for block in self.animation_sequence:
+            end_frame = block.offset + block.duration
+            max_frames = max(max_frames, end_frame)
+        return max_frames
 
 
 class CanvasTween(Tween):
