@@ -131,7 +131,7 @@ class TweenDirector(object):
         tween_handle = TweenHandle(widget, tween, loop)
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
-            self._after_id = self.root.after_idle(self._animation_heartbeat, time.time())
+            self._after_id = self.root.after_idle(self._animation_heartbeat, time.time(), -1)
         return tween_handle
 
     def cancel_tween(self, handle:TweenHandle, revert:bool) -> bool:
@@ -162,7 +162,7 @@ class TweenDirector(object):
     def remove_callback(self, uid:uuid.uuid4) -> None:
         self._callbacks.pop(uid)
 
-    def _animation_heartbeat(self, t0: float):
+    def _animation_heartbeat(self, t0: float, last_frame_id:int):
         """
         Handle one animation frame, updating all active tweens.
 
@@ -178,7 +178,7 @@ class TweenDirector(object):
         frame_id = int(round(t * self.fps))
 
         for tween_id, tween_handle in self._active_tweens.items():
-            running = tween_handle.tween.animation_frame(frame_id, tween_handle)
+            running = tween_handle.tween.animation_frame(frame_id, last_frame_id, tween_handle)
             if not running:
                 finished_tweens.append(tween_id)
 
@@ -194,7 +194,9 @@ class TweenDirector(object):
                 callback(h)
             
         if self._active_tweens:
-            self._after_id = self.root.after(1000 // int(1.5 * self.fps), self._animation_heartbeat, t0)
+            next_frame_time = t0 + (frame_id + 1) / self.fps 
+            delay = max(10, int(1000 * (next_frame_time - time.time())))
+            self._after_id = self.root.after(delay, self._animation_heartbeat, t0, frame_id)
         else:
             self._after_id = None
 
@@ -226,6 +228,7 @@ class Tween(object):
     def animation_frame(
         self, 
         global_frame_id: int,
+        last_global_frame_id: int,
         handle: TweenHandle
     ) -> bool:
         """
@@ -243,30 +246,47 @@ class Tween(object):
             handle.frame_0 = global_frame_id
 
         frame_id = global_frame_id - handle.frame_0
+        last_frame_id = last_global_frame_id - handle.frame_0 
 
         if handle.loop:
             num_frames = self.get_num_frames()
             iteration, frame_id = divmod(frame_id, num_frames)
             if iteration % 2 == 1:
                 frame_id = num_frames - frame_id
+        else:
+            # Handle the edge case, that we are beyond the last frame of the animation 
+            # In this case, we skipped the last frame previously, so just clamp the frame back
+            frame_id = max(0, min(self.get_num_frames(), frame_id))
+
 
         # If we loop, we are always running
         running = handle.loop
 
         for block in self.animation_sequence:
-            rel_frame = frame_id - block.offset
+
+            duration = block.duration
+            offset   = block.offset
             
-            if 0 <= rel_frame <= block.duration:
-                t_rel = (frame_id - block.offset) / block.duration
+            rel_frame = frame_id - offset
+            last_rel_frame = last_frame_id - offset
+            
+            t_rel = None
+
+            if 0 <= rel_frame <= duration:
+                t_rel = (frame_id - offset) / duration
                 t_rel = block.easing(t_rel)
+            elif rel_frame > duration and last_rel_frame < duration:
+                t_rel = 1.0
                 
+            if t_rel is not None:
                 for animator in block.animators:
                     animator(handle.widget, t_rel, handle.id)
 
-                if rel_frame == block.duration and not handle.loop:
+                if t_rel == 1 and not handle.loop:
                     block.finalize(handle)
+                
+                running = running or rel_frame < block.duration 
 
-            running = running or rel_frame <= block.duration 
         
         return running
 
