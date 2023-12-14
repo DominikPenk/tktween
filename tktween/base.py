@@ -32,8 +32,10 @@ class TweenAnimator(abc.ABC):
         pass
 
 
-    def inverted(self) -> TweenAnimator:
-        raise NotImplementedError("'inverted' not implemented for this Animator")
+    def inverse(self) -> TweenAnimator:
+        cls = self.__class__
+        msg = f"'inverse' not implemented for {cls.__module__}.{cls.__qualname__}"
+        raise NotImplementedError(msg)
 
 
     def finalize(self, widget:TweenAble, animation_id:uuid.UUID) -> None:

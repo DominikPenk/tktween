@@ -42,8 +42,8 @@ class CanvasTweenAnimator(TweenAnimator):
 class Translate(CanvasTweenAnimator):
     def __init__(
         self,
-        dx:int | None = None,
-        dy:int | None = None,
+        dx:int = 0,
+        dy:int = 0,
     ) -> None:
         super().__init__()
         self.dx = dx
@@ -54,9 +54,12 @@ class Translate(CanvasTweenAnimator):
 
     def step(self, obj: SceneObject, t: float, animation_data: tuple[float, float]) -> None:
         x0, y0 = animation_data
-        x = lerp(x0, x0 + self.dx, t) if self.dx else x0
-        y = lerp(y0, y0 + self.dy, t) if self.dy else y0
+        x = lerp(x0, x0 + self.dx, t)
+        y = lerp(y0, y0 + self.dy, t)
         obj.translation = np.array([x, y])
+
+    def inverse(self) -> TweenAnimator:
+        return Translate(-self.dx, -self.dy)
 
 
 class Rotate(CanvasTweenAnimator):
@@ -70,6 +73,9 @@ class Rotate(CanvasTweenAnimator):
     def step(self, obj: SceneObject, t: float, a0: float) -> None:
         obj.rotation = lerp(a0, a0+self.angle, t)
 
+    def inverse(self) -> TweenAnimator:
+        return Rotate(-self.angle)
+
 class Scale(CanvasTweenAnimator):
     def __init__(self, scale:float) -> None:
         super().__init__()
@@ -80,6 +86,9 @@ class Scale(CanvasTweenAnimator):
     
     def step(self, obj: SceneObject, t:float, s0: float) -> None:
         obj.scale = lerp(s0, self.scale, t)
+
+    def inverse(self) -> TweenAnimator:
+        return Scale(1.0 / self.scale)
 
 
 class FillColor(CanvasTweenAnimator):
@@ -108,4 +117,12 @@ class FillColor(CanvasTweenAnimator):
         c1, c2 = animation_data
         c = lerp_color(c1, c2, t, mode=self.mode, clockwise=self.clockwise)
         obj.configure(fill=rgb_to_hex(c))
+
+    def inverse(self) -> TweenAnimator:
+        return FillColor(
+            start_color=self.end_color,
+            end_color=self.start_color,
+            mode=self.mode,
+            clockwise=not self.clockwise
+        )
         

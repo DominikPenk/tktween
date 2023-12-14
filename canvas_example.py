@@ -5,17 +5,15 @@ import tktween
         
 
 window = tk.Tk()
-style = ttk.Style()
-style.configure("my.TFrame", background="red")
 
 window.geometry("640x480")
 
 canvas = tk.Canvas(window)
 square = canvas.create_polygon(
-    20, 20,
-    20, 70,
-    70, 70,
-    70, 20,
+    20, 20+ 150,
+    20, 70+ 150,
+    70, 70+ 150,
+    70, 20+ 150,
     fill='red'
 )
 
@@ -25,38 +23,27 @@ circle = canvas.create_oval(
     fill='green'
 )
 
-bouncy = canvas.create_oval(
-    20, 200,
-    30, 210,
-    fill='gray'
+circle_2 = canvas.create_oval(
+    80 + 100, 20 + 100,
+    130 + 100, 70 + 100,
+    fill='green'
 )
 
 
 tween = tktween.CanvasTween(
     tktween.canvas.Translate(dx=100),
-    tktween.canvas.Rotate(angle=180),
-    duration=0.75,
-    easing=tktween.Easing.CUBIC_IN
+    duration=.75,
+    easing=tktween.Easing.QUADRATIC_IN
 ).then(
     tktween.canvas.Translate(dy=100),
-    tktween.canvas.Rotate(angle=180),
-    duration=0.75,
-    easing=tktween.Easing.CUBIC_OUT
+    duration=.75,
+    easing=tktween.Easing.QUADRATIC_OUT
 ).parallel(
-    tktween.canvas.FillColor(
-        end_color='blue',
-        mode='hsv'
-    ),
-    tktween.canvas.Scale(0.5),
+    tktween.canvas.FillColor(end_color='blue', mode='hsv'),
     easing=tktween.Easing.QUADRATIC_IN_OUT
 )
 
 tween.add_callback(lambda h: print("Tween finished (local)"))
-
-bouncy_tween = tktween.CanvasTween(
-    tktween.canvas.Translate(dx=20),
-    duration=0.3
-)
 
 canvas.pack(fill='both', expand=True)
 
@@ -64,6 +51,6 @@ tktween.on_tween_finished(lambda handle: print("Tween finished (global)"))
 
 tween.run(canvas, square, True)
 tween.run(canvas, circle, False)
-bouncy_tween.run(canvas, bouncy, True)
+tween.inverse().run(canvas, circle_2, False)
 
 window.mainloop()

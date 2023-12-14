@@ -138,3 +138,34 @@ def get_easing(type: Easing | None) -> Callable[[float], float]:
     if type is None or callable(type):
         return lambda x: x
     return EASING_FUNCTIONS[type]
+
+
+def get_inverse_easing(type: Easing | None) -> Easing | None:
+    inverse_mapping = {
+        Easing.SINUSOIDAL_IN: Easing.SINUSOIDAL_OUT,
+        Easing.SINUSOIDAL_OUT: Easing.SINUSOIDAL_IN,
+        Easing.SINUSOIDAL_IN_OUT: Easing.SINUSOIDAL_IN_OUT,
+        Easing.QUADRATIC_IN: Easing.QUADRATIC_OUT,
+        Easing.QUADRATIC_OUT: Easing.QUADRATIC_IN,
+        Easing.QUADRATIC_IN_OUT: Easing.QUADRATIC_IN_OUT,
+        Easing.CUBIC_IN: Easing.CUBIC_OUT,
+        Easing.CUBIC_OUT: Easing.CUBIC_IN,
+        Easing.CUBIC_IN_OUT: Easing.CUBIC_IN_OUT,
+        Easing.QUARTIC_IN: Easing.QUARTIC_OUT,
+        Easing.QUARTIC_OUT: Easing.QUARTIC_IN,
+        Easing.QUARTIC_IN_OUT: Easing.QUARTIC_IN_OUT,
+        Easing.QUINTIC_IN: Easing.QUINTIC_OUT,
+        Easing.QUINTIC_OUT: Easing.QUINTIC_IN,
+        Easing.QUINTIC_IN_OUT: Easing.QUINTIC_IN_OUT,
+        Easing.EXPONENTIAL_IN: Easing.EXPONENTIAL_OUT,
+        Easing.EXPONENTIAL_OUT: Easing.EXPONENTIAL_IN,
+        Easing.EXPONENTIAL_IN_OUT: Easing.EXPONENTIAL_IN_OUT,
+        Easing.CIRCULAR_IN: Easing.CIRCULAR_OUT,
+        Easing.CIRCULAR_OUT: Easing.CIRCULAR_IN,
+        Easing.CIRCULAR_IN_OUT: Easing.CIRCULAR_IN_OUT,
+    }
+
+    return inverse_mapping.get(type, None)
+
+
+

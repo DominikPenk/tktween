@@ -3,11 +3,26 @@ from __future__ import annotations
 import time
 import tkinter as tk
 import uuid
-from typing import Callable
+from typing import Callable, Optional
 
 from .base import ObjectId, TweenAble, TweenAnimator
-from .easing import Easing, get_easing
+from .easing import Easing, get_easing, get_inverse_easing
 from .scene import Scene
+
+__all__ = [
+    'AnimationBlock',
+    'TweenHandle',
+    'Tween',
+    'CanvasTween'
+]
+
+
+def get_looped_frame_id(frame_id:int, num_frames:int) -> tuple[int, bool]:
+    iteration, frame_id = divmod(frame_id, num_frames)
+    reversed = iteration % 2 == 1
+    if reversed:
+        frame_id = num_frames - frame_id
+    return frame_id, reversed
 
 
 class AnimationBlock:
@@ -31,7 +46,8 @@ class AnimationBlock:
     ) -> None:
         self.animators = animators
         self.time_duration = duration 
-        self.time_offset   = offset
+        self.time_offset = offset
+        self.easing_type = easing
         self.easing = get_easing(easing)
 
     @property
@@ -205,7 +221,7 @@ class Tween(object):
     def __init__(
         self,
         *animations,
-        duration:float,
+        duration:Optional[float]=None,
         easing:Easing|None=None
     ) -> None:
         """Create a Tween where the given animations are run in parallel
@@ -214,13 +230,15 @@ class Tween(object):
             duration (float): duration of the animation in seconds
             easing (Easing | None, optional): Easing to use. Defaults to None.
         """
-        self.animation_sequence: list[AnimationBlock] = [AnimationBlock(
-            animations, 
-            duration=duration,
-            offset=0, 
-            easing=easing
-        )]
-        self._then_offset: float = duration
+        self.animation_sequence: list[AnimationBlock] = []
+        if animations:
+            self.animation_sequence.append(AnimationBlock(
+                animations,
+                duration=duration,
+                offset=0.0,
+                easing=easing
+            ))
+        self._then_offset: float = duration if duration else 0.0
         self._parallel_offset: float = 0
         self._callbacks: dict[uuid.UUID, Callable[[TweenHandle], None]] = {}
 
@@ -248,11 +266,12 @@ class Tween(object):
         frame_id = global_frame_id - handle.frame_0
         last_frame_id = last_global_frame_id - handle.frame_0 
 
+        reversed = False
+
         if handle.loop:
             num_frames = self.get_num_frames()
-            iteration, frame_id = divmod(frame_id, num_frames)
-            if iteration % 2 == 1:
-                frame_id = num_frames - frame_id
+            frame_id, reversed = get_looped_frame_id(frame_id, num_frames)
+            last_frame_id, _ = get_looped_frame_id(last_frame_id, num_frames)
         else:
             # Handle the edge case, that we are beyond the last frame of the animation 
             # In this case, we skipped the last frame previously, so just clamp the frame back
@@ -275,8 +294,10 @@ class Tween(object):
             if 0 <= rel_frame <= duration:
                 t_rel = (frame_id - offset) / duration
                 t_rel = block.easing(t_rel)
-            elif rel_frame > duration and last_rel_frame < duration:
+            elif not reversed and rel_frame > duration and last_rel_frame < duration:
                 t_rel = 1.0
+            elif reversed and rel_frame < 0 and last_rel_frame > 0:
+                t_rel = 0.0
                 
             if t_rel is not None:
                 for animator in block.animators:
@@ -365,6 +386,23 @@ class Tween(object):
         return self
 
 
+    def inverse(self) -> Tween:
+        """Return an inverse tween"""
+        tween = type(self)()
+        duration = self.get_duration()
+        for block in self.animation_sequence:
+            inv_animators = [animator.inverse() for animator in block.animators]
+            offset = duration - block.time_offset - block.time_duration
+            tween.animation_sequence.append(AnimationBlock(
+                inv_animators,
+                duration=block.time_duration,
+                offset=offset,
+                easing=get_inverse_easing(block.easing_type)
+            ))
+        tween._then_offset = self._then_offset
+        tween._parallel_offset = self._parallel_offset
+        return tween
+
     def pause(self, duration:float) -> Tween:
         self._then_offset += duration
         return self
@@ -373,7 +411,7 @@ class Tween(object):
     def run(
         self,
         target: TweenAble,
-        loop:bool=False
+        loop:bool=False,
     ) -> TweenHandle:
         """
         Run the animation on a target.
@@ -402,7 +440,11 @@ class Tween(object):
 
 
     def get_duration(self) -> float:
-        return self.get_num_frames() / TweenDirector.get().fps
+        max_time = 0
+        for block in self.animation_sequence:
+            end_time = block.time_offset + block.time_duration
+            max_time = max(max_time, end_time)
+        return max_time
 
 
     def get_num_frames(self) -> int:

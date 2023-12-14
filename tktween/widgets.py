@@ -59,7 +59,6 @@ class StyleAnimator(TweenAnimator):
         
         return f"tktween.{widget.winfo_id()}.{widget.winfo_class()}"
 
-
 class Background(StyleAnimator):
     def __init__(
         self,
@@ -100,3 +99,12 @@ class Background(StyleAnimator):
         c1, c2, style = animation_data
         c = lerp_color(c1, c2, t, mode=self.mode, clockwise=self.clockwise)
         self.style.configure(style, background=rgb_to_hex(c))
+
+
+    def inverse(self) -> TweenAnimator:
+        return Background(
+            start_color=self.end_color,
+            end_color=self.start_color,
+            mode=self.mode,
+            clockwise=not self.clockwise
+        )
