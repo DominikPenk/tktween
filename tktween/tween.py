@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
 import tkinter as tk
 import uuid
 
-from .base import TweenAble, ObjectId, TweenAnimator
+from .base import ObjectId, TweenAble, TweenAnimator
 from .easing import Easing, get_easing
 from .scene import Scene
+
 
 class AnimationBlock:
     """
@@ -27,10 +29,18 @@ class AnimationBlock:
         easing:     Easing | None
     ) -> None:
         self.animators = animators
-        self.duration  = int(round(duration * 30)) 
-        self.offset    = int(round(offset * 30))
-        self.easing    = get_easing(easing)
+        self.time_duration = duration 
+        self.time_offset   = offset
+        self.easing = get_easing(easing)
 
+    @property
+    def duration(self) -> int:
+        return int(round(self.time_duration * TweenDirector.get().fps))
+
+    
+    @property
+    def offset(self) -> int:
+        return int(round(self.time_offset * TweenDirector.get().fps))
 
     def finalize(self, handle:TweenHandle):
         """
@@ -78,6 +88,7 @@ class TweenDirector(object):
         self._after_id: int | None = None
         self._root: tk.Tk | None = None
         self._scenes: dict[tk.Canvas, Scene] = {}
+        self.fps: int = 30
 
     @property
     def root(self) -> tk.Tk:
@@ -118,7 +129,7 @@ class TweenDirector(object):
         tween_handle = TweenHandle(widget, tween, loop)
         self._active_tweens[tween_handle.id] = tween_handle
         if self._after_id is None:
-            self._after_id = self.root.after_idle(self._animation_heartbeat, 0)
+            self._after_id = self.root.after_idle(self._animation_heartbeat, time.time())
         return tween_handle
 
     def cancel_tween(self, handle:TweenHandle, revert:bool) -> bool:
@@ -141,18 +152,21 @@ class TweenDirector(object):
             self._scenes[canvas] = Scene(canvas)
         return self._scenes[canvas]
 
-
-    def _animation_heartbeat(self, frame_id: int):
+    def _animation_heartbeat(self, t0: float):
         """
         Handle one animation frame, updating all active tweens.
 
         Args:
-            frame_id (int): Frame id.
+            t0 (float): The first time this method was called.
 
         Returns:
             None
         """
         finished_tweens = []
+
+        t = time.time() - t0
+        frame_id = int(round(t * self.fps))
+
         for tween_id, tween_handle in self._active_tweens.items():
             running = tween_handle.tween.animation_frame(frame_id, tween_handle)
             if not running:
@@ -165,7 +179,7 @@ class TweenDirector(object):
             self._active_tweens.pop(tween_id, None)
 
         if self._active_tweens:
-            self._after_id = self.root.after(30, self._animation_heartbeat, frame_id + 1)
+            self._after_id = self.root.after(1000 // self.fps, self._animation_heartbeat, t0)
         else:
             self._after_id = None
 
@@ -341,9 +355,8 @@ class Tween(object):
         return TweenDirector.get().is_active(self, widget)
 
 
-
     def get_duration(self) -> float:
-        return self.get_num_frames() / 30
+        return self.get_num_frames() / TweenDirector.get().fps
 
 
     def get_num_frames(self) -> int:
