@@ -1,6 +1,9 @@
 import tkinter as tk
-from .tween import TweenDirector, Tween
+import uuid
+
+from typing import Callable
 from .scene import Scene
+from .tween import Tween, TweenDirector, TweenHandle
 
 __all__ = [
     'get_fps',
@@ -8,7 +11,9 @@ __all__ = [
     'is_running',
     'get_root',
     'set_root',
-    'get_scene'
+    'get_scene',
+    'on_tween_finished',
+    'remove_on_tween_finised'
 ]
 
 def get_fps() -> int:
@@ -28,3 +33,9 @@ def set_root(root:tk.Tk) -> None:
 
 def get_scene(canvas:tk.Canvas) -> Scene:
     return TweenDirector.get().get_scene(canvas)
+
+def on_tween_finished(callback: Callable[[TweenHandle], None]) -> uuid.UUID:
+    return TweenDirector.get().add_callback(callback)
+
+def remove_on_tween_finised(uid: uuid.UUID) -> None:
+    TweenDirector.get().remove_callback(uid)

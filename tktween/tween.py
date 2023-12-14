@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import tkinter as tk
 import uuid
+from typing import Callable
 
 from .base import ObjectId, TweenAble, TweenAnimator
 from .easing import Easing, get_easing
@@ -88,6 +89,7 @@ class TweenDirector(object):
         self._after_id: int | None = None
         self._root: tk.Tk | None = None
         self._scenes: dict[tk.Canvas, Scene] = {}
+        self._callbacks: dict[uuid.UUID, Callable[[TweenHandle], None]] = {}
         self.fps: int = 30
 
     @property
@@ -152,6 +154,14 @@ class TweenDirector(object):
             self._scenes[canvas] = Scene(canvas)
         return self._scenes[canvas]
 
+    def add_callback(self, callback: Callable[[TweenHandle], None]) -> uuid.UUID:
+        uid = uuid.uuid4()
+        self._callbacks[uid] = callback
+        return uid
+    
+    def remove_callback(self, uid:uuid.uuid4) -> None:
+        self._callbacks.pop(uid)
+
     def _animation_heartbeat(self, t0: float):
         """
         Handle one animation frame, updating all active tweens.
@@ -176,10 +186,15 @@ class TweenDirector(object):
             scene.update()
 
         for tween_id in finished_tweens:
-            self._active_tweens.pop(tween_id, None)
+            h = self._active_tweens.pop(tween_id)
+            for callback in h.tween._callbacks.values():
+                callback(h)
 
+            for callback in self._callbacks.values():
+                callback(h)
+            
         if self._active_tweens:
-            self._after_id = self.root.after(1000 // self.fps, self._animation_heartbeat, t0)
+            self._after_id = self.root.after(1000 // int(1.5 * self.fps), self._animation_heartbeat, t0)
         else:
             self._after_id = None
 
@@ -205,6 +220,7 @@ class Tween(object):
         )]
         self._then_offset: float = duration
         self._parallel_offset: float = 0
+        self._callbacks: dict[uuid.UUID, Callable[[TweenHandle], None]] = {}
 
 
     def animation_frame(
@@ -349,6 +365,16 @@ class Tween(object):
             TweenHandle: Handle of the tween.
         """
         return TweenDirector.get().start_animation(target, self, loop)
+
+
+    def add_callback(self, callback: Callable[[TweenHandle], None]) -> uuid.UUID:
+        uid = uuid.uuid4()
+        self._callbacks[uid] = callback
+        return uid
+    
+
+    def remove_callback(self, uid: uuid.UUID) -> None:
+        self._callbacks.pop(uid)
 
 
     def is_running(self, widget:tk.Widget) -> bool:

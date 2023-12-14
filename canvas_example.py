@@ -51,12 +51,16 @@ tween = tktween.CanvasTween(
     easing=tktween.Easing.QUADRATIC_IN_OUT
 )
 
+tween.add_callback(lambda h: print("Tween finished (local)"))
+
 bouncy_tween = tktween.CanvasTween(
     tktween.canvas.Translate(dx=20),
     duration=0.3
 )
 
 canvas.pack(fill='both', expand=True)
+
+tktween.on_tween_finished(lambda handle: print("Tween finished (global)"))
 
 tween.run(canvas, square, True)
 tween.run(canvas, circle, False)
