@@ -13,7 +13,9 @@ __all__ = [
     'Translate',
     'Resize',
     'StyleAnimator',
+    'ColorAnimator',
     'Background',
+    'Foreground',
 ]
 
 # Animation types
@@ -95,11 +97,6 @@ class StyleAnimator(TweenAnimator):
             raise ValueError("Style Animation only implemented for ttk Widgets")
         return self.set_animated_style(widget)
 
-    def get_current_color(self, widget: ttk.Widget, cfg: str) -> Color:
-        current_style = widget['style']
-        current_color = self.style.lookup(current_style, cfg)
-        current_color = tuple((x>>8) / 255 for x in widget.winfo_rgb(current_color))
-        return current_color
 
     def set_animated_style(self, widget: tk.Widget) -> str:
         style_name = f"tktween.{widget.winfo_id()}.{widget.winfo_class()}"
@@ -110,25 +107,34 @@ class StyleAnimator(TweenAnimator):
                 self.style.configure(style_name, **config)
             widget.configure(style=style_name)
         return style_name
+    
 
-class Background(StyleAnimator):
+class ColorAnimator(StyleAnimator):
     def __init__(
         self,
+        value:str,
         start_color:Optional[Color]=None,
         end_color:Optional[Color]=None,
         mode:Literal['rgb', 'hsv']='rgb',
         clockwise:Optional[bool]=None
     ) -> None:
         super().__init__()
+        self._value = value
         self.start_color = start_color
         self.end_color = end_color
         self.mode = mode
         self.clockwise = clockwise
 
 
+    def get_current_color(self, widget: ttk.Widget, cfg: str) -> Color:
+        current_style = widget['style']
+        current_color = self.style.lookup(current_style, cfg)
+        current_color = tuple((x>>8) / 255 for x in widget.winfo_rgb(current_color))
+        return current_color
+    
     def start(self, widget: tk.Widget) -> tuple[Color, Color, str]:
         style_name = super().start(widget)
-        current_color = self.get_current_color(widget, "background")
+        current_color = self.get_current_color(widget, self._value)
 
         c1 = self.start_color or current_color
         c2 = self.end_color or current_color
@@ -136,17 +142,52 @@ class Background(StyleAnimator):
         return c1, c2, style_name
     
     
-    def step(self, widget: tk.Widget, t: float, animation_data:tuple[Color, Color, str]) -> None:
+    def step(self, widget:tk.Widget, t:float, animation_data: tuple[Color, Color, str]) -> None:
         c1, c2, style = animation_data
         c = lerp_color(c1, c2, t, mode=self.mode, clockwise=self.clockwise)
-        self.style.configure(style, background=rgb_to_hex(c))
+        self.style.configure(style, **{self._value: rgb_to_hex(c)})
 
-
+    
     def inverse(self) -> TweenAnimator:
-        return Background(
+        return type(self)(
+            value=self._value,
             start_color=self.end_color,
             end_color=self.start_color,
             mode=self.mode,
             clockwise=not self.clockwise
         )
-    
+
+
+class Background(ColorAnimator):
+    def __init__(
+        self,
+        start_color:Optional[Color]=None,
+        end_color:Optional[Color]=None,
+        mode:Literal['rgb', 'hsv']='rgb',
+        clockwise:Optional[bool]=None
+    ) -> None:
+        super().__init__(
+            value="background",
+            start_color=start_color,
+            end_color=end_color,
+            mode=mode,
+            clockwise=clockwise
+        )
+
+
+class Foreground(ColorAnimator):
+    def __init__(
+        self,
+        start_color:Optional[Color]=None,
+        end_color:Optional[Color]=None,
+        mode:Literal['rgb', 'hsv']='rgb',
+        clockwise:Optional[bool]=None
+    ) -> None:
+        super().__init__(
+            value="foreground",
+            start_color=start_color,
+            end_color=end_color,
+            mode=mode,
+            clockwise=clockwise
+        )
+
