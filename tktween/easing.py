@@ -134,13 +134,23 @@ EASING_FUNCTIONS: Dict[Easing, Callable[[float], float]] = {
     Easing.CIRCULAR_IN_OUT: circular_in_out,
 }
 
-def get_easing(type: Easing | None) -> Callable[[float], float]:
+def get_easing(type: Easing | str | None) -> Callable[[float], float]:
     if type is None or callable(type):
         return lambda x: x
+    elif isinstance(type, str):
+        easing_name = type.lower()
+        for easing_type, easing_func in EASING_FUNCTIONS.items():
+            if easing_type.name.lower() == easing_name.lower():
+                return easing_func
+        raise ValueError(f"Invalid easing type: {type}")
     return EASING_FUNCTIONS[type]
 
 
-def get_inverse_easing(type: Easing | None) -> Easing | None:
+def get_inverse_easing(type: Easing | str | None) -> Easing | None:
+    
+    if isinstance(type, str):
+        type = get_easing(type)
+
     inverse_mapping = {
         Easing.SINUSOIDAL_IN: Easing.SINUSOIDAL_OUT,
         Easing.SINUSOIDAL_OUT: Easing.SINUSOIDAL_IN,
